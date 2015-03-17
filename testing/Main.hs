@@ -7,9 +7,6 @@ import Keys
 sampleRate :: Int
 sampleRate = 44100
 
-keyToFreq :: Double -> Double
-keyToFreq key = 440.0*2**((key-49.0)/12)
-
 main = do
    s <- loadStream "sample.wav" 1
    let schnipsel = take 140000 s

@@ -1,4 +1,4 @@
-module Keys () where
+module Keys (keyToFreq) where
 
 -- this is an awful makeshift solution
 
