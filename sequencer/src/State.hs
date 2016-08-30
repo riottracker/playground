@@ -1,67 +1,44 @@
 module State where
 
+import           Control.Monad
+import           Control.Concurrent
+import           Control.Concurrent.STM
 import           Graphics.Vty
 
+import           MidiOutput
+import           Sequencer
 
-data Pitch = Pitch { tone   :: Tone
-                   , octave :: Int
-                   }
-    deriving Eq
-
-instance Show Pitch where
-    show p = show (tone p) ++ show (octave p)
-
-
-data Tone = Cn | C' | Dn | D' | En | Fn | F' | Gn | G' | An | A' | Bn
-    deriving Eq
-
-instance Show Tone where
-    show Cn = "C-"
-    show C' = "C#"
-    show Dn = "D-"
-    show D' = "D#"
-    show En = "E-"
-    show Fn = "F-"
-    show F' = "F#"
-    show Gn = "G-"
-    show G' = "G#"
-    show An = "A-"
-    show A' = "A#"
-    show Bn = "B-"
-
-data Cell = Cell { pitch      :: Maybe Pitch
-                 , instrument :: Maybe Int
-                 , volpan     :: Maybe Int
-                 , fxtype     :: Maybe Int
-                 , fxparam    :: Maybe Int
-                 }
-
-emptyCell :: Cell
-emptyCell = Cell Nothing Nothing Nothing Nothing Nothing
-
-data Song = Song { track :: [[Cell]] }
-
-data State = State { song     :: Song
-                   , cursorY  :: Int
-                   , cursorX  :: Int
-                   , editMode :: Bool
-                   , sChannel :: Int
-                   , sOctave  :: Int
-                   , vty      :: Vty
+data State = State { sequencer  :: TVar Sequencer
+                   , thread     :: ThreadId
+                   , cursorY    :: Int
+                   , cursorX    :: Int
+                   , editMode   :: Bool
+                   , sChannel   :: Int
+                   , sOctave    :: Int
+                   , vty        :: Vty
                    }
 
-defaultState :: Vty -> State
-defaultState v = State { song     = emptySong
-                       , cursorX  = 0
-                       , cursorY  = 0
-                       , editMode = False
-                       , sChannel = 0
-                       , sOctave  = 4
-                       , vty      = v
-                       }
+defaultState :: Vty -> MidiOutput -> Song -> IO State
+defaultState v m s = do seq <- newTVarIO (mkSequencer m) { song = s }
+                        tid <- forkIO $ tick seq                        
+                        return State { sequencer = seq
+                                     , thread    = tid
+                                     , cursorX   = 0
+                                     , cursorY   = 0
+                                     , editMode  = False
+                                     , sChannel  = 0
+                                     , sOctave   = 4
+                                     , vty       = v
+                                     }
 
-emptySong :: Song
-emptySong = Song { track = replicate 4 (replicate 32 emptyCell) }
+withState :: Vty -> MidiOutput -> Song -> (State -> IO a) -> IO a
+withState v m s f = defaultState v m s >>= f
+              
+readSong :: State -> IO Song
+readSong s = liftM song (readTVarIO (sequencer s))
+
+readPlaying :: State -> IO Bool
+readPlaying s = liftM playing (readTVarIO (sequencer s))     
 
 exampleSong :: Song
 exampleSong = Song [

@@ -7,14 +7,33 @@ import           Graphics.Vty
 import           State
 import           Images
 
+import MidiOutput
+import Sequencer
+import Control.Monad.IO.Class (liftIO, )
+import Control.Monad
+import Control.Concurrent
+import Control.Concurrent.STM
+import Debug.Trace
+
 main = do
+    listPorts
+    putStr "Select port: "
+    port <- getLine
     config <- standardIOConfig
     vty <- mkVty config
-    main' (defaultState vty) { song = exampleSong }
+    withMidiOutput port $ \m -> withState vty m exampleSong main'
 
 main' state = do
-    update (vty state) (picForImage $ rootImage state)
+    r <- rootImage state
+    update (vty state) (picForImage r)
+    seq <- readTVarIO $ sequencer state
+    sng <- readSong state
     ev <- nextEvent (vty state)
+    let numChn = length (track sng) - 1
+        mvRchn = if chn < numChn then chn + 1 else 0
+        mvLchn = if chn > 0 then chn - 1 else numChn
+        len    = length $ track sng !! 0
+        
     case ev of
         EvKey KEsc         [] -> shutdown (vty state)
         EvKey KUp          [] -> main' state
@@ -23,27 +42,24 @@ main' state = do
                                  { cursorY = if y < len - 1 then y + 1 else 0 }
         EvKey KRight       [] -> main' state
                                  { cursorX = if x < 7 then x + 1 else 0
-                                 , sChannel = if not (x < 7) then mvRchn else chn
+                                 , sChannel = if x >= 7 then mvRchn else chn
                                  }
         EvKey KRight  [MCtrl] -> main' state
                                  { sChannel = mvRchn }
         EvKey KLeft        [] -> main' state
                                  { cursorX = if x > 0 then x - 1 else 7
-                                 , sChannel = if not (x > 0) then mvLchn else chn
+                                 , sChannel = if x <= 0 then mvLchn else chn
                                  }
         EvKey KLeft   [MCtrl] -> main' state
                                  { sChannel = mvLchn }
         EvKey (KFun i)     [] -> main' state { sOctave = i - 1 }
-        EvKey (KChar c)    [] -> main' $ handleKChar state c
+        EvKey (KChar ' ')  [] -> main' state { editMode = not (editMode state) }
+        EvKey (KChar c)    [] -> handleKChar state c >> main' state
+        EvKey KEnter       [] -> play (sequencer state) >> main' state
         _                     -> main' state
-  where x      = cursorX state
-        y      = cursorY state
-        chn    = sChannel state
-        len    = length $ (track (song state)) !! 0
-        numChn = (length $ track (song state)) - 1
-        mvRchn = if chn < numChn then chn + 1 else 0
-        mvLchn = if chn > 0 then chn - 1 else numChn
-
+  where x        = cursorX state
+        y        = cursorY state
+        chn      = sChannel state
 
 -- TODO: support different layouts
 --       (maybe query xkb?)
@@ -61,32 +77,33 @@ pianoRoll = [ ('z', Pitch Cn 0), ('s', Pitch C' 0), ('x', Pitch Dn 0)
             , ('o', Pitch Dn 1), ('0', Pitch D' 1)
             ]
 
-handleKChar :: State -> Char -> State
-handleKChar s ' ' = s { editMode = not (editMode s) }
-handleKChar s c = if editMode s
-                  then case cursorX s of
-    0 -> case lookup c pianoRoll of
-           Just x ->
-             updateAtCursor (\a b -> a { pitch = Just b { octave = (octave b) + (sOctave s) }}) x
-           Nothing -> s
-    1 -> hexEdit (\a b -> a { instrument = Just $ set16th (fromMaybe 0 (instrument a)) b })
-    2 -> hexEdit (\a b -> a { instrument = Just $ set1st  (fromMaybe 0 (instrument a)) b })
-    3 -> hexEdit (\a b -> a { volpan     = Just $ set16th (fromMaybe 0 (volpan a)) b })
-    4 -> hexEdit (\a b -> a { volpan     = Just $ set1st  (fromMaybe 0 (volpan a)) b })
-    5 -> hexEdit (\a b -> a { fxtype     = Just b })
-    6 -> hexEdit (\a b -> a { fxparam    = Just $ set16th (fromMaybe 0 (fxparam a)) b})
-    7 -> hexEdit (\a b -> a { fxparam    = Just $ set1st  (fromMaybe 0 (fxparam a)) b})
-    _ -> s
-                  else s
+handleKChar :: State -> Char -> IO ()
+handleKChar s c = when (editMode s) $
+    case cursorX s of
+        0 -> case lookup c pianoRoll of
+                 Just x -> modifyCell (sequencer s)
+                             (\a -> a{ pitch = Just $ x { octave = octave x + sOctave s}})
+                             (sChannel s)
+                             (cursorY s)
+                 Nothing -> return ()
+        1 -> hexEdit
+               (\ a -> a { instrument = Just $ set16th (fromMaybe 0 (instrument a))})
+        2 -> hexEdit
+               (\a -> a { instrument = Just $ set1st (fromMaybe 0 (instrument a))})
+        3 -> hexEdit
+               (\a -> a { volpan = Just $ set16th (fromMaybe 0 (volpan a))})
+        4 -> hexEdit
+               (\a -> a { volpan = Just $ set1st (fromMaybe 0 (volpan a))})
+        5 -> hexEdit (\a -> a { fxtype = Just $ digitToInt c})
+        6 -> hexEdit
+               (\a -> a { fxparam = Just $ set16th (fromMaybe 0 (fxparam a))})
+        7 -> hexEdit
+               (\a -> a { fxparam = Just $ set1st (fromMaybe 0 (fxparam a))})
+        _ -> return ()
+
   where
-    updateAtCursor f x = s { song = (song s) { track = replaceNth (sChannel s) (
-        replaceNth (cursorY s) (f (((track $ song s) !! (sChannel s)) !! (cursorY s)) x) ((track (song s)) !! (sChannel s))
-                      ) (track (song s))     }}
-    hexEdit f = if isHexDigit c then updateAtCursor f $ digitToInt c else s
-    set1st n d = n - (n `mod` 16) + d
-    set16th n d = d * 16 + (n `mod` 16)
-    replaceNth n new (x : xs)
-        | n == 0 = new : xs
-        | otherwise = x : replaceNth (n - 1) new xs
+    hexEdit f = when (isHexDigit c) $ modifyCell (sequencer s) f (sChannel s) (cursorY s)
+    set1st n = n - (n `mod` 16) + digitToInt c
+    set16th n = digitToInt c * 16 + (n `mod` 16)
 
 
