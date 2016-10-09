@@ -13,7 +13,7 @@ import qualified Sound.ALSA.Sequencer.Connect as Connect
 import           Data.Word
 import           Control.Concurrent
 import           Control.Concurrent.STM
-import            MidiOutput
+import           MidiOutput
 
 data Tone = Cn | C' | Dn | D' 
     | En 

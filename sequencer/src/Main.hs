@@ -4,7 +4,7 @@ import           Data.Maybe
 import           Data.Char
 import           Graphics.Vty
 
-import           State
+import           App
 import           Images
 
 import MidiOutput
@@ -21,45 +21,45 @@ main = do
     port <- getLine
     config <- standardIOConfig
     vty <- mkVty config
-    withMidiOutput port $ \m -> withState vty m exampleSong main'
+    withMidiOutput port $ \m -> withApp vty m exampleSong main'
 
-main' state = do
-    r <- rootImage state
-    update (vty state) (picForImage r)
-    seq <- readTVarIO $ sequencer state
-    sng <- readSong state
-    ev <- nextEvent (vty state)
+main' app = do
+    r <- rootImage app
+    update (vty app) (picForImage r)
+    seq <- readTVarIO $ sequencer app
+    sng <- readSong app
+    ev <- nextEvent (vty app)
     let numChn = length (track sng) - 1
         mvRchn = if chn < numChn then chn + 1 else 0
         mvLchn = if chn > 0 then chn - 1 else numChn
         len    = length $ track sng !! 0
         
     case ev of
-        EvKey KEsc         [] -> shutdown (vty state)
-        EvKey KUp          [] -> main' state
+        EvKey KEsc         [] -> shutdown (vty app)
+        EvKey KUp          [] -> main' app
                                  { cursorY = if y > 0 then y - 1 else len - 1 }
-        EvKey KDown        [] -> main' state
+        EvKey KDown        [] -> main' app
                                  { cursorY = if y < len - 1 then y + 1 else 0 }
-        EvKey KRight       [] -> main' state
+        EvKey KRight       [] -> main' app
                                  { cursorX = if x < 7 then x + 1 else 0
                                  , sChannel = if x >= 7 then mvRchn else chn
                                  }
-        EvKey KRight  [MCtrl] -> main' state
+        EvKey KRight  [MCtrl] -> main' app
                                  { sChannel = mvRchn }
-        EvKey KLeft        [] -> main' state
+        EvKey KLeft        [] -> main' app
                                  { cursorX = if x > 0 then x - 1 else 7
                                  , sChannel = if x <= 0 then mvLchn else chn
                                  }
-        EvKey KLeft   [MCtrl] -> main' state
+        EvKey KLeft   [MCtrl] -> main' app
                                  { sChannel = mvLchn }
-        EvKey (KFun i)     [] -> main' state { sOctave = i - 1 }
-        EvKey (KChar ' ')  [] -> main' state { editMode = not (editMode state) }
-        EvKey (KChar c)    [] -> handleKChar state c >> main' state
-        EvKey KEnter       [] -> play (sequencer state) >> main' state
-        _                     -> main' state
-  where x        = cursorX state
-        y        = cursorY state
-        chn      = sChannel state
+        EvKey (KFun i)     [] -> main' app { sOctave = i - 1 }
+        EvKey (KChar ' ')  [] -> main' app { editMode = not (editMode app) }
+        EvKey (KChar c)    [] -> handleKChar app c >> main' app
+        EvKey KEnter       [] -> play (sequencer app) >> main' app
+        _                     -> main' app
+  where x        = cursorX app
+        y        = cursorY app
+        chn      = sChannel app
 
 -- TODO: support different layouts
 --       (maybe query xkb?)
@@ -77,7 +77,7 @@ pianoRoll = [ ('z', Pitch Cn 0), ('s', Pitch C' 0), ('x', Pitch Dn 0)
             , ('o', Pitch Dn 1), ('0', Pitch D' 1)
             ]
 
-handleKChar :: State -> Char -> IO ()
+handleKChar :: App -> Char -> IO ()
 handleKChar s c = when (editMode s) $
     case cursorX s of
         0 -> case lookup c pianoRoll of

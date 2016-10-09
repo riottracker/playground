@@ -9,48 +9,48 @@ import Control.Monad
 import Control.Concurrent
 import Control.Concurrent.STM
 
-import           State
+import           App
 import           Sequencer
 
 
-rootImage :: State -> IO Image
-rootImage state = fmap (<-> renderPianoRoll) $ liftM2 (<->) (renderPatternEdit state) (renderHelp state)
+rootImage :: App -> IO Image
+rootImage app = fmap (<-> renderPianoRoll) $ liftM2 (<->) (renderPatternEdit app) (renderHelp app)
 
-renderPatternEdit :: State -> IO Image
-renderPatternEdit state = do len <- liftM (length . track) $ readSong state
-                             foldr1 (liftM2 horizJoin) $ renderIndex state : [ renderChannel i state | i <- [0 .. (len - 1)]]
+renderPatternEdit :: App -> IO Image
+renderPatternEdit app = do len <- liftM (length . track) $ readSong app
+                           foldr1 (liftM2 horizJoin) $ renderIndex app : [ renderChannel i app | i <- [0 .. (len - 1)]]
 
 renderPianoRoll :: Image
 renderPianoRoll = string defAttr "  s d   g h j     2 3   5 6 7  " <->
                   string defAttr " z x c v b n m   q w e r t y u "
 
-renderHelp :: State -> IO Image
-renderHelp state = do
-    p <- readPlaying state
+renderHelp :: App -> IO Image
+renderHelp app = do
+    p <- readPlaying app
     return $ string defAttr
         ( "<space>: edit on/off | F1,F2,..: select octave | <return>: "
         ++ (if p then "pause" else "play ")
         ++ " | <esc>: quit | arrows: navigate"
         )
 
-renderChannel :: Int -> State -> IO Image
-renderChannel chn state = do
-    len <- liftM (length . (!! chn) . track ) $ readSong state
-    t <- foldr1 (liftM2 vertJoin) [ renderCell chn i state | i <- [0 .. (len - 1)]]
+renderChannel :: Int -> App -> IO Image
+renderChannel chn app = do
+    len <- liftM (length . (!! chn) . track ) $ readSong app
+    t <- foldr1 (liftM2 vertJoin) [ renderCell chn i app | i <- [0 .. (len - 1)]]
     return $ pad 1 0 1 0 t
 
-renderIndex :: State -> IO Image
-renderIndex state = do
-    b <- readPlaying state
-    c <- liftM position (readTVarIO (sequencer state))
-    len <- liftM (length . (!! 0) . track) $ readSong state
+renderIndex :: App -> IO Image
+renderIndex app = do
+    b <- readPlaying app
+    c <- liftM position (readTVarIO (sequencer app))
+    len <- liftM (length . (!! 0) . track) $ readSong app
     let row i = string (if b && (i == c) then defAttr `withStyle` reverseVideo else defAttr `withForeColor` brightYellow)
                        (replicate (4 - length (show i)) '0' ++ show i)
     return $ pad 0 0 2 0 $ foldr1 (<->) [ row i | i <- [0 .. (len - 1)] ]
 
-renderCell :: Int -> Int -> State -> IO Image
-renderCell chn i state = do
-   cell <- liftM ((!! i) . (!! chn) . track) $ readSong state
+renderCell :: Int -> Int -> App -> IO Image
+renderCell chn i app = do
+   cell <- liftM ((!! i) . (!! chn) . track) $ readSong app
    return $ 
         string (nth 0 brightWhite) (printPitch cell)
     <|> string defAttr " "
@@ -66,12 +66,12 @@ renderCell chn i state = do
     <|> string defAttr " "
   where
     colored k    = defAttr `withForeColor` k
-    nth n k      = if cursorX state == n && cursorY state == i && sChannel state == chn
+    nth n k      = if cursorX app == n && cursorY app == i && sChannel app == chn
                    then selected (colored k) else colored k
     print1st a   = if isNothing a then "." else [ intToDigit $ fromJust a `mod` 16 ]
     print16th a  = if isNothing a then "." else [ intToDigit $ fromJust a `div` 16 ]
     printPitch c = maybe "..." show (pitch c)
-    selected x   = if editMode state
+    selected x   = if editMode app
                    then x `withBackColor` red
                    else x `withStyle` reverseVideo
 
