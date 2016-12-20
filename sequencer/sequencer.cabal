@@ -23,6 +23,7 @@ executable sequencer
                      , MidiOutput
                      , Sequencer
                      , App
+                     , Editor
 
 source-repository head
   type:     git

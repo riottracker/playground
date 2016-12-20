@@ -71,10 +71,11 @@ data Sequencer = Sequencer
     , position :: Int
     , playing :: Bool
     , output :: MidiOutput
+    , seqRedraw :: Bool
     } 
 
 mkSequencer :: MidiOutput -> Sequencer
-mkSequencer = Sequencer defaultSong 0 False
+mkSequencer m = Sequencer defaultSong 0 False m True
 
 defaultSong :: Song
 defaultSong = 
@@ -86,13 +87,7 @@ modifySequencer :: TVar Sequencer -> (Sequencer -> Sequencer) -> IO ()
 modifySequencer seq f = atomically $ modifyTVar seq f
 
 play :: TVar Sequencer -> IO ()
-play seq = 
-    modifySequencer
-        seq
-        (\s -> 
-              s
-              { playing = not (playing s)
-              })
+play seq = modifySequencer seq (\s -> s { playing = not (playing s)})
 
 modifyCell :: TVar Sequencer -> (Cell -> Cell) -> Int -> Int -> IO ()
 modifyCell seq f chn n = modifySequencer seq $ updateCell f chn n
@@ -113,6 +108,7 @@ updateCell f chn n seq =
 tick :: TVar Sequencer -> IO ()
 tick seq = do
     sequencer <- readTVarIO seq
+    modifySequencer seq (\x -> if playing sequencer then x { seqRedraw = True } else x)
     let midi = output sequencer
         conn = connection midi
         h = handle midi
