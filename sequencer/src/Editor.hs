@@ -1,5 +1,7 @@
 module Editor where
 
+import           Sound.PortMidi
+
 import           Graphics.Vty
 import           Control.Monad
 import           Control.Concurrent
@@ -20,7 +22,7 @@ data Editor = Editor { cursorY    :: Int
                      , nChannels  :: Int
                      }
 
-defaultEditor :: MidiOutput -> Song -> IO Editor
+defaultEditor :: PMStream -> Song -> IO Editor
 defaultEditor m s = do seq <- newTVarIO (mkSequencer m) { song = s }
                        tid <- forkIO $ tick seq                    
                        return Editor { sequencer  = seq

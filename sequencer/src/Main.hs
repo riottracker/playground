@@ -16,26 +16,16 @@ import Control.Concurrent.STM
 import Debug.Trace
 
 main = do
-    listPorts
-    putStr "Select port: "
-    port <- getLine
+    port <- getDefaultMidiOutput
     config <- standardIOConfig
     vty <- mkVty config
-    withMidiOutput port $ \m -> withApp vty m exampleSong run
-
-
-ethread app = do
-  handleEvents app
-  ethread app
+    case port of
+        Left x -> withApp vty x exampleSong run
+        Right e -> putStrLn $ show e
 
 run app = do
-  eventThread <- forkIO $ ethread app
-  main' app
-
-main' app = do
-    render app
-    main' app
-
+  eventThread <- forkIO $ forever $ do handleEvents app
+  forever $ do render app
 
 
 exampleSong :: Song
