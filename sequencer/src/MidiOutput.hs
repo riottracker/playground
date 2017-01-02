@@ -18,15 +18,12 @@ getDeviceList = do
   mapM getDeviceInfo [0..d-1]
 
 printDeviceList :: [DeviceInfo] -> IO ()
-printDeviceList l = do
-  putStrLn " Port    Client name                      Port name                Caps"
-  mapM_ (\x -> putStrLn $
-                   (interface x) ++ " "
-                ++ (name x) ++ " "
-                ++ (if input x then "in" else if output x then "out" else "  ")) l
+printDeviceList l = mapM_ (\(i,x) -> printf "%3i %-40s %-20s %s%s\n" (i::Int) (name x) (interface x) (if input x then "in" else "") (if output x then "out" else "")) $ zip  [0..] l
 
 getDefaultMidiOutput :: IO (Either PMStream PMError) 
 getDefaultMidiOutput = getDeviceList >>= printDeviceList >> do
   putStrLn "Selection:"
+  s <- getLine
+  putStrLn "latency:"
   l <- getLine
-  openInput ((read l) :: DeviceID)
+  openOutput ((read s) :: DeviceID) ((read l) :: Int)
