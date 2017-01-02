@@ -1,5 +1,7 @@
 module App where
 
+import           Sound.PortMidi
+
 import           Data.Maybe
 import           Data.Char
 import           Control.Monad
@@ -16,7 +18,7 @@ data App = App { editor     :: TVar Editor
                , vty        :: TVar Vty
                }
 
-defaultApp :: Vty -> MidiOutput -> Song -> IO App
+defaultApp :: Vty -> PMStream -> Song -> IO App
 defaultApp v m s = do ed <- defaultEditor m s
                       edi <- newTVarIO ed
                       vi <- newTVarIO v
@@ -24,7 +26,7 @@ defaultApp v m s = do ed <- defaultEditor m s
                                  , vty       = vi
                                  }
 
-withApp :: Vty -> MidiOutput -> Song -> (App -> IO a) -> IO a
+withApp :: Vty -> PMStream -> Song -> (App -> IO a) -> IO a
 withApp v m s f = defaultApp v m s >>= f
 
 render :: App -> IO ()

@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 executable sequencer
   hs-source-dirs:      src
   main-is:             Main.hs
-  build-depends:       base >= 4.7 && < 5, vty, alsa-seq, alsa-core, transformers, enumset, stm
+  build-depends:       base >= 4.7 && < 5, vty, transformers, enumset, stm, PortMidi
   default-language:    Haskell2010
   ghc-options:         "-threaded"
   other-modules:       Images

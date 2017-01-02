@@ -2,14 +2,8 @@
 
 module Sequencer where
 
-import qualified Sound.ALSA.Sequencer.Address as Addr
-import qualified Sound.ALSA.Sequencer.Client as Client
-import qualified Sound.ALSA.Sequencer.Port as Port
-import qualified Sound.ALSA.Sequencer.Event as Event
-import qualified Sound.ALSA.Sequencer.Queue as Queue
-import qualified Sound.ALSA.Sequencer.Time as Time
-import qualified Sound.ALSA.Sequencer as SndSeq
-import qualified Sound.ALSA.Sequencer.Connect as Connect
+import           Sound.PortMidi
+
 import           Data.Word
 import           Control.Concurrent
 import           Control.Concurrent.STM
@@ -70,11 +64,11 @@ data Sequencer = Sequencer
     { song :: Song
     , position :: Int
     , playing :: Bool
-    , output :: MidiOutput
+    , output :: PMStream
     , seqRedraw :: Bool
     } 
 
-mkSequencer :: MidiOutput -> Sequencer
+mkSequencer :: PMStream -> Sequencer
 mkSequencer m = Sequencer defaultSong 0 False m True
 
 defaultSong :: Song
@@ -109,79 +103,4 @@ tick :: TVar Sequencer -> IO ()
 tick seq = do
     sequencer <- readTVarIO seq
     modifySequencer seq (\x -> if playing sequencer then x { seqRedraw = True } else x)
-    let midi = output sequencer
-        conn = connection midi
-        h = handle midi
-        q = queue midi
-        me = address midi
-        trk = track (song sequencer)
-        ev t e = 
-            (Event.forConnection conn e)
-            { Event.queue = q
-            , Event.time = Time.consAbs $ Time.Tick t
-            }
-    Queue.control h q Event.QueueStart Nothing
-    Queue.control h q (Event.QueueTempo (Event.Tempo 10000000)) Nothing
-    fmap (const ()) $
-        Event.output
-            h
-            ((ev 1 $ Event.CustomEv Event.Echo $ Event.Custom 0 0 0)
-             { Event.dest = me
-             })
-    _ <- Event.drainOutput h
-    _ <- Event.outputPending h
-    let waitForEcho = do
-            event <- Event.input h
-            case Event.body event of
-                Event.CustomEv Event.Echo _d -> 
-                    if Event.source event == me
-                        then (if playing sequencer
-                                  then do
-                                      modifySequencer
-                                          seq
-                                          (\s -> 
-                                                s
-                                                { position = if position s <
-                                                                length
-                                                                    (trk !! 0) -
-                                                                1
-                                                      then position s + 1
-                                                      else 0
-                                                })
-                                      mapM_
-                                          (\c -> 
-                                                case pitch
-                                                         (c !!
-                                                          position sequencer) of
-                                                    Nothing -> return ()
-                                                    Just p -> 
-                                                        Event.output
-                                                            h
-                                                            (ev 0 $
-                                                             Event.CtrlEv
-                                                                 Event.Controller
-                                                                 (Event.Ctrl
-                                                                      (Event.Channel
-                                                                           0)
-                                                                      (Event.Parameter
-                                                                           0x7B)
-                                                                      (Event.Value
-                                                                           0x0))) >>
-                                                        Event.output
-                                                            h
-                                                            (ev 0 $
-                                                             Event.NoteEv
-                                                                 Event.NoteOn $
-                                                             Event.simpleNote
-                                                                 (Event.Channel
-                                                                      0)
-                                                                 (Event.Pitch $
-                                                                  midiPitch p)
-                                                                 Event.normalVelocity) >>
-                                                        return ())
-                                          trk
-                                      tick seq
-                                  else tick seq)
-                        else waitForEcho
-                _ -> waitForEcho
-    waitForEcho
+    
