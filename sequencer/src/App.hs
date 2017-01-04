@@ -1,6 +1,6 @@
 module App where
 
-import           Sound.PortMidi
+import qualified Sound.PortMidi as PM
 
 import           Data.Maybe
 import           Data.Char
@@ -14,11 +14,11 @@ import           Images
 import           Sequencer
 import           MidiOutput
 
-data App = App { editor     :: TVar Editor
-               , vty        :: TVar Vty
+data App = App { editor      :: TVar Editor
+               , vty         :: TVar Vty
                }
 
-defaultApp :: Vty -> PMStream -> Song -> IO App
+defaultApp :: Vty -> PM.PMStream -> Song -> IO App
 defaultApp v m s = do ed <- defaultEditor m s
                       edi <- newTVarIO ed
                       vi <- newTVarIO v
@@ -26,7 +26,7 @@ defaultApp v m s = do ed <- defaultEditor m s
                                  , vty       = vi
                                  }
 
-withApp :: Vty -> PMStream -> Song -> (App -> IO a) -> IO a
+withApp :: Vty -> PM.PMStream -> Song -> (App -> IO a) -> IO a
 withApp v m s f = defaultApp v m s >>= f
 
 render :: App -> IO ()
@@ -44,7 +44,7 @@ handleEvents app = do
     ed <- readTVarIO $ editor app
     ev <- nextEvent v
     case ev of
-        EvKey KEsc         [] -> shutdown v
+        EvKey KEsc         [] -> quit app
         EvKey KUp          [] -> m moveUp
         EvKey KDown        [] -> m moveDown
         EvKey KRight       [] -> m moveRight
@@ -57,6 +57,16 @@ handleEvents app = do
         EvKey KEnter       [] -> play (sequencer ed)
  where m f = do atomically $ modifyTVar (editor app) f
                 redrawEd (editor app)
+
+quit :: App -> IO ()
+quit app = do
+    v <- readTVarIO $ vty app
+    ed <- readTVarIO $ editor app
+    seq <- readTVarIO $ sequencer ed
+    shutdown v
+    PM.close $ output seq
+    killThread $ seqThread ed
+    atomically $ modifyTVar (editor app) (\e -> e { quitEditor = True })
 
 handleKChar :: Editor -> Char -> IO ()
 handleKChar ed c = when (editMode ed) $ 

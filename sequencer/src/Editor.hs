@@ -20,6 +20,7 @@ data Editor = Editor { cursorY    :: Int
                      , edRedraw   :: Bool
                      , nRows      :: Int
                      , nChannels  :: Int
+                     , quitEditor :: Bool
                      }
 
 defaultEditor :: PMStream -> Song -> IO Editor
@@ -35,6 +36,7 @@ defaultEditor m s = do seq <- newTVarIO (mkSequencer m) { song = s }
                                      , sChannel   = 0
                                      , sOctave    = 4
                                      , edRedraw   = True
+                                     , quitEditor = False
                                      }
 
 jumpRight ed = ed { sChannel = if sChannel ed < (nChannels ed) - 1 then (sChannel ed) + 1 else 0 }

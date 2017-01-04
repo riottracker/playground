@@ -1,11 +1,13 @@
 module Main where
 
+import           Control.Monad.Loops
 import           Data.Maybe
 import           Data.Char
 import           Graphics.Vty
 
 import           App
 import           Images
+import           Editor
 
 import MidiOutput
 import Sequencer
@@ -23,10 +25,16 @@ main = do
         Left x -> withApp vty x exampleSong run
         Right e -> putStrLn $ show e
 
-run app = do
-  eventThread <- forkIO $ forever $ do handleEvents app
-  forever $ do render app
+checkA :: App -> IO Bool
+checkA a = do x <- readTVarIO (editor a)
+              return $ quitEditor x
 
+run app = do
+  renderThread <- forkIO $ forever $ render app
+  let k = do handleEvents app 
+             e <- readTVarIO (editor app)
+             if quitEditor e then return () else k
+  k
 
 exampleSong :: Song
 exampleSong = Song [
