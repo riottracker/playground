@@ -24,7 +24,7 @@ data Editor = Editor { cursorY    :: Int
 
 defaultEditor :: PMStream -> Song -> IO Editor
 defaultEditor m s = do seq <- newTVarIO (mkSequencer m) { song = s }
-                       tid <- forkIO $ tick seq                    
+                       tid <- forkIO $ forever $ tick seq
                        return Editor { sequencer  = seq
                                      , seqThread  = tid
                                      , nRows      = (length . (!! 0) . track) s

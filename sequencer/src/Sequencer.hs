@@ -2,9 +2,10 @@
 
 module Sequencer where
 
-import           Sound.PortMidi
-
+import qualified Sound.PortMidi as PM
+import           Foreign.C.Types
 import           Data.Word
+import           Data.Maybe
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           MidiOutput
@@ -42,7 +43,7 @@ data Pitch = Pitch
 instance Show Pitch where
     show p = show (tone p) ++ show (octave p)
 
-midiPitch :: Pitch -> Word8
+midiPitch :: Pitch -> Foreign.C.Types.CLong
 midiPitch Pitch{..} = fromIntegral (octave * 12 + fromEnum tone)
 
 data Cell = Cell
@@ -63,13 +64,14 @@ data Song = Song
 data Sequencer = Sequencer
     { song :: Song
     , position :: Int
+    , tempo :: Int            -- BPM
     , playing :: Bool
-    , output :: PMStream
+    , output :: PM.PMStream
     , seqRedraw :: Bool
     } 
 
-mkSequencer :: PMStream -> Sequencer
-mkSequencer m = Sequencer defaultSong 0 False m True
+mkSequencer :: PM.PMStream -> Sequencer
+mkSequencer m = Sequencer defaultSong 0 120 False m True
 
 defaultSong :: Song
 defaultSong = 
@@ -100,7 +102,13 @@ updateCell f chn n seq =
       | otherwise = x : updateNth (n - 1) u xs
 
 tick :: TVar Sequencer -> IO ()
-tick seq = do
-    sequencer <- readTVarIO seq
-    modifySequencer seq (\x -> if playing sequencer then x { seqRedraw = True } else x)
-    
+tick sequencer = do
+    seq <- readTVarIO sequencer
+    modifySequencer sequencer (\x -> if playing seq then x { seqRedraw = True } else x)
+    case playing seq of
+        True -> do
+                    let ev = [PM.PMMsg 0xB0 0x7B 0x0] ++ map (flip (PM.PMMsg 144 . midiPitch) 127) (catMaybes (map pitch (map (!! position seq) (track (song seq)))))
+                    PM.writeEvents (output seq) $ map (\x -> PM.PMEvent (PM.encodeMsg x) 0) ev
+                    threadDelay $ 60000000 `div` (4 * (tempo seq)) -- YOLO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #WorksForMe
+                    modifySequencer sequencer (\s -> s { position = if position seq < length (track (song seq) !! 0) - 1 then position seq + 1 else 0 })
+        False -> return ()
