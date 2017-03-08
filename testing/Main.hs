@@ -21,25 +21,18 @@ data Instrument = Instrument
                 { osc     :: Oscillator
                 , env     :: Envelope
                 , elapsed :: Double
+                , tone    :: Maybe Int
                 }
 
-data Event = NoteOn  Int Int
-           | NoteOff Int Int
+type Song = [Maybe Int]
 
-type Song = [Maybe [Event]]
-
-data Player = Player
-            { song        :: Song
-            , position    :: Int
-            , instruments :: [Instrument]
-            } 
-
+-- TODO: make this logarithmic
 envelope :: Envelope -> Double -> Double
 envelope Envelope{..} t
   | t <= attack                             = (t / attack)
-  | t <= attack + decay                     = 1.0 - ((t - attack) / decay) * (1.0 - sustainLevel)
+  | t <= attack + decay                     = 1.0 - (t - attack) / decay * (1.0 - sustainLevel)
   | t <= attack + decay + sustain           = sustainLevel
-  | t <= attack + decay + sustain + release = sustainLevel - (sustainLevel * (t - (attack + decay + sustain))/release)
+  | t <= attack + decay + sustain + release = sustainLevel - sustainLevel * (t - attack - decay - sustain) / release
   | otherwise                               = 0
 
 
@@ -60,12 +53,39 @@ mix o1 o2 = \f t -> (o1 f t + o2 f t) * 0.5
 quint :: Oscillator -> Oscillator
 quint o = mix o (o . ((3/2)*))
 
+octave :: Oscillator -> Oscillator
+octave o = mix o (o . ((1/2)*))
 minor :: Oscillator -> Oscillator
 minor o = mix (quint o) (o . ((6/5)*))
 
 major :: Oscillator -> Oscillator
 major o = mix (quint o) (o . ((5/4)*))
 
+silence :: Signal
+silence = const 0
+
+exampleSong = [ Just 67, Nothing, Nothing, Just 65, Nothing, Nothing, Nothing, Nothing
+              , Just 65, Nothing, Nothing, Just 64, Nothing, Nothing, Nothing, Nothing
+              , Just 63, Nothing, Nothing, Just 62, Nothing, Nothing, Nothing, Just 58
+              , Just 58, Just 57, Just 60, Nothing, Nothing, Nothing, Nothing, Nothing
+              ]
+
+play :: Song -> Int -> Instrument -> IO ()
+play s pos ins = p >>= \i -> if pos + 1 == length s then return ()
+                             else play s (pos + 1) i
+  where p = case s !! pos of
+              Just n -> do
+                 playOnStdOut $ renderSignal 0.0 0.3 sampleRate $ trackEnvelope (osc ins) (env ins) $ keyToFreq n
+                 return $ ins { elapsed = 0.3, tone = Just n }
+              Nothing -> do
+                case tone ins of
+                  Just n -> do
+                              playOnStdOut $ renderSignal (elapsed ins) (elapsed ins + 0.3) sampleRate $
+                                             trackEnvelope (osc ins) (env ins) $ keyToFreq n
+                              return $ ins { elapsed = (elapsed ins) + 0.3}
+                  Nothing -> do
+                              playOnStdOut $ renderSignal 0.0 0.3 sampleRate silence
+                              return ins
 
 main = do
 --   s <- loadStream "sample.wav" 1
@@ -73,5 +93,5 @@ main = do
 --   playOnStdOut $ schnipsel ++ (reverse schnipsel) ++ pause
 --   playOnStdOut $ concat $ map (renderSignal 0.0 0.4 sampleRate) $ map (sine . keyToFreq) [40..50]
 -- where pause = renderSignal 0.0 0.05 sampleRate silence
-     let e1 = Envelope 0.5 0.5 0.5 0.2 0.5
-     playOnStdOut $ renderSignal 0.0 2.0 sampleRate $ trackEnvelope (major sine) e1 $ 440
+     let bell = Instrument (octave sine) (Envelope 0.05 0.04 0.2 0.2 1.0) 0.0 Nothing
+     play exampleSong 0 bell
