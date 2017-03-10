@@ -1,6 +1,7 @@
 module Main where
 
-import           Control.Monad.Loops
+--import           Control.Monad.Loops
+import qualified Sound.RtMidi as Rt
 import           Data.Maybe
 import           Data.Char
 import           Graphics.Vty
@@ -9,7 +10,6 @@ import           App
 import           Images
 import           Editor
 
-import MidiOutput
 import Sequencer
 import Control.Monad.IO.Class (liftIO, )
 import Control.Monad
@@ -18,12 +18,16 @@ import Control.Concurrent.STM
 import Debug.Trace
 
 main = do
-    port <- getDefaultMidiOutput
+    device <- Rt.defaultOutput
+    numPorts <- Rt.portCount device
+    ports <- mapM (Rt.portName device) [0..numPorts-1]
+    mapM_ (\t -> putStrLn $ show t) $ zip [0..] ports
+    putStrLn "select port: "
+    selection <- getLine
+    Rt.openPort device (read selection) "riottracker"
     config <- standardIOConfig
     vty <- mkVty config
-    case port of
-        Left x -> withApp vty x exampleSong run
-        Right e -> putStrLn $ show e
+    withApp vty device exampleSong run
 
 checkA :: App -> IO Bool
 checkA a = do x <- readTVarIO (editor a)

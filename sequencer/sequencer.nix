@@ -1,5 +1,4 @@
-{ mkDerivation, base, enumset, PortMidi, stdenv, stm, transformers
-, vty
+{ mkDerivation, base, enumset, stdenv, stm, vty, alsaLib
 }:
 mkDerivation {
   pname = "sequencer";
@@ -8,7 +7,7 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    base enumset PortMidi stm transformers vty
+    base vty stm alsaLib
   ];
   homepage = "https://github.com/githubuser/seq#readme";
   description = "Initial project template from stack";

@@ -2,13 +2,12 @@
 
 module Sequencer where
 
-import qualified Sound.PortMidi as PM
+import qualified Sound.RtMidi as Rt
 import           Foreign.C.Types
 import           Data.Word
 import           Data.Maybe
 import           Control.Concurrent
 import           Control.Concurrent.STM
-import           MidiOutput
 
 data Tone = Cn | C' | Dn | D' 
     | En 
@@ -43,7 +42,7 @@ data Pitch = Pitch
 instance Show Pitch where
     show p = show (tone p) ++ show (octave p)
 
-midiPitch :: Pitch -> Foreign.C.Types.CLong
+midiPitch :: Pitch -> Foreign.C.Types.CUChar
 midiPitch Pitch{..} = fromIntegral (octave * 12 + fromEnum tone)
 
 data Cell = Cell
@@ -66,12 +65,11 @@ data Sequencer = Sequencer
     , position :: Int
     , tempo :: Int            -- BPM
     , playing :: Bool
-    , output :: PM.PMStream
-    , seqRedraw :: Bool
+    , output :: Rt.Device
     } 
 
-mkSequencer :: PM.PMStream -> Sequencer
-mkSequencer m = Sequencer defaultSong 0 120 False m True
+mkSequencer :: Rt.Device -> Sequencer
+mkSequencer m = Sequencer defaultSong 0 120 True m
 
 defaultSong :: Song
 defaultSong = 
@@ -104,11 +102,10 @@ updateCell f chn n seq =
 tick :: TVar Sequencer -> IO ()
 tick sequencer = do
     seq <- readTVarIO sequencer
-    modifySequencer sequencer (\x -> if playing seq then x { seqRedraw = True } else x)
     case playing seq of
         True -> do
-                    let ev = [PM.PMMsg 0xB0 0x7B 0x0] ++ map (flip (PM.PMMsg 144 . midiPitch) 127) (catMaybes (map pitch (map (!! position seq) (track (song seq)))))
-                    PM.writeEvents (output seq) $ map (\x -> PM.PMEvent (PM.encodeMsg x) 0) ev
+                    let ev = [[0xB0, 0x7B, 0x00]] ++ map (\p -> [144, midiPitch p, 127]) (catMaybes (map pitch (map (!! position seq) (track (song seq)))))
+                    mapM_ (Rt.sendMessage (output seq)) ev
                     threadDelay $ 60000000 `div` (4 * (tempo seq)) -- YOLO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #WorksForMe
                     modifySequencer sequencer (\s -> s { position = if position seq < length (track (song seq) !! 0) - 1 then position seq + 1 else 0 })
         False -> return ()

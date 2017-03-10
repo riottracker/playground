@@ -1,6 +1,6 @@
 module App where
 
-import qualified Sound.PortMidi as PM
+import qualified Sound.RtMidi as Rt
 
 import           Data.Maybe
 import           Data.Char
@@ -12,13 +12,12 @@ import           Graphics.Vty
 import           Editor
 import           Images
 import           Sequencer
-import           MidiOutput
 
 data App = App { editor      :: TVar Editor
                , vty         :: TVar Vty
                }
 
-defaultApp :: Vty -> PM.PMStream -> Song -> IO App
+defaultApp :: Vty -> Rt.Device -> Song -> IO App
 defaultApp v m s = do ed <- defaultEditor m s
                       edi <- newTVarIO ed
                       vi <- newTVarIO v
@@ -26,7 +25,7 @@ defaultApp v m s = do ed <- defaultEditor m s
                                  , vty       = vi
                                  }
 
-withApp :: Vty -> PM.PMStream -> Song -> (App -> IO a) -> IO a
+withApp :: Vty -> Rt.Device -> Song -> (App -> IO a) -> IO a
 withApp v m s f = defaultApp v m s >>= f
 
 render :: App -> IO ()
@@ -34,10 +33,8 @@ render app = do
     ed <- readTVarIO $ editor app
     seq <- readTVarIO $ sequencer ed
     v <- readTVarIO $ vty app
-    if (edRedraw ed) || (seqRedraw seq) then
-      update v (picForImage $ rootImage ed seq)
-    else
-      return ()
+    update v (picForImage $ rootImage ed seq)
+    threadDelay 20
 
 handleEvents app = do
     v <- readTVarIO $ vty app
@@ -53,10 +50,10 @@ handleEvents app = do
         EvKey KLeft   [MCtrl] -> m jumpLeft
         EvKey (KFun i)     [] -> m $ selectOctave i
         EvKey (KChar ' ')  [] -> m switchMode
-        EvKey (KChar c)    [] -> handleKChar ed c >> redrawEd (editor app)
+        EvKey (KChar c)    [] -> handleKChar ed c
         EvKey KEnter       [] -> play (sequencer ed)
- where m f = do atomically $ modifyTVar (editor app) f
-                redrawEd (editor app)
+        _                     -> return ()
+ where m f = atomically $ modifyTVar (editor app) f
 
 quit :: App -> IO ()
 quit app = do
@@ -64,8 +61,8 @@ quit app = do
     ed <- readTVarIO $ editor app
     seq <- readTVarIO $ sequencer ed
     shutdown v
-    PM.close $ output seq
     killThread $ seqThread ed
+    Rt.closeOutput $ output seq
     atomically $ modifyTVar (editor app) (\e -> e { quitEditor = True })
 
 handleKChar :: Editor -> Char -> IO ()

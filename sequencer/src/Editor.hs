@@ -1,13 +1,13 @@
 module Editor where
 
-import           Sound.PortMidi
+import qualified Sound.RtMidi as Rt
 
 import           Graphics.Vty
 import           Control.Monad
 import           Control.Concurrent
 import           Control.Concurrent.STM
 
-import           MidiOutput
+
 import           Sequencer
 
 data Editor = Editor { cursorY    :: Int
@@ -17,13 +17,12 @@ data Editor = Editor { cursorY    :: Int
                      , sOctave    :: Int
                      , sequencer  :: TVar Sequencer
                      , seqThread  :: ThreadId
-                     , edRedraw   :: Bool
                      , nRows      :: Int
                      , nChannels  :: Int
                      , quitEditor :: Bool
                      }
 
-defaultEditor :: PMStream -> Song -> IO Editor
+defaultEditor :: Rt.Device -> Song -> IO Editor
 defaultEditor m s = do seq <- newTVarIO (mkSequencer m) { song = s }
                        tid <- forkIO $ forever $ tick seq
                        return Editor { sequencer  = seq
@@ -35,7 +34,6 @@ defaultEditor m s = do seq <- newTVarIO (mkSequencer m) { song = s }
                                      , editMode   = False
                                      , sChannel   = 0
                                      , sOctave    = 4
-                                     , edRedraw   = True
                                      , quitEditor = False
                                      }
 
@@ -60,6 +58,4 @@ selectOctave n ed = ed { sOctave = n }
 switchMode :: Editor -> Editor
 switchMode ed = ed { editMode = not (editMode ed) }
 
-redrawEd :: TVar Editor -> IO ()
-redrawEd e = atomically $ modifyTVar e (\x -> x { edRedraw = True })
 
