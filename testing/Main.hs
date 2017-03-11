@@ -67,7 +67,7 @@ silence = const 0
 exampleSong = [ Just 67, Nothing, Nothing, Just 65, Nothing, Nothing, Nothing, Nothing
               , Just 65, Nothing, Nothing, Just 64, Nothing, Nothing, Nothing, Nothing
               , Just 63, Nothing, Nothing, Just 62, Nothing, Nothing, Nothing, Just 58
-              , Just 58, Just 57, Just 60, Nothing, Nothing, Nothing, Nothing, Nothing
+              , Just 58, Just 57, Just 60, Just 48, Nothing, Nothing, Nothing, Nothing
               ]
 
 play :: Song -> Int -> Instrument -> IO ()
