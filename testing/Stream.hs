@@ -1,4 +1,4 @@
-module Stream (Stream, Signal, renderSignal) where
+module Stream (Stream, Signal, renderSignal, silence) where
 --, loadStream) where
 
 import Data.Int (Int32 (..))
@@ -6,6 +6,10 @@ import Data.Int (Int32 (..))
 
 type Signal = Double -> Double
 type Stream = [Int32]
+
+
+silence :: Signal
+silence = const 0
 
 --loadStream :: String -> Int -> IO Stream
 --loadStream fn ch = do
