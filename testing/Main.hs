@@ -6,6 +6,10 @@ import Keys
 import Synth
 import Instrument
 import Event
+import SampleBank
+import qualified Data.Map as M
+
+
 
 sampleRate :: Int
 sampleRate = 44100
@@ -21,20 +25,26 @@ exampleSong = [ Just (NoteOn 67), Nothing, Nothing, Just (NoteOn 65), Nothing, N
               , Just (NoteOn 58), Just (NoteOn 57), Just (NoteOn 60), Just (NoteOn 48), Nothing, Nothing, Nothing, Nothing
               ]
 
-play :: Instrument i1 => Song -> Int -> i1 -> IO ()
-play s pos ins = p >> if pos + 1 == length s then return ()
-                      else play s (pos + 1) (fst k)
+pattern = [ Just (NoteOn 0), Nothing, Just (NoteOn 1), Nothing
+          , Just (NoteOn 2), Nothing, Just (NoteOn 1), Nothing
+          ]
+
+play :: Instrument i1 => Song -> Int -> i1 -> Double -> IO ()
+play s pos ins tempo = p >> if pos + 1 == length s then return ()
+                      else play s (pos + 1) (fst k) tempo
   where i = case s !! pos of
                Just e  -> handleEvent ins e
                Nothing -> ins
-        k = render i 0.3 sampleRate
+        k = render i tempo sampleRate
         p = playOnStdOut $ snd k
 
 main = do
---   s <- loadStream "sample.wav" 1
---   let schnipsel = take 140000 s
---   playOnStdOut $ schnipsel ++ (reverse schnipsel) ++ pause
---   playOnStdOut $ concat $ map (renderSignal 0.0 0.4 sampleRate) $ map (sine . keyToFreq) [40..50]
--- where pause = renderSignal 0.0 0.05 sampleRate silence
-     let 
-     play exampleSong 0 bell
+--     play exampleSong 0 bell 0.3
+  s <- loadSample "sample.wav" 0
+  let s0 = take 3000 $ drop (sampleRate * 2) s
+  let s1 = take 3000 $ drop (sampleRate * 10) s
+  let s2 = take 3000 $ drop (sampleRate * 12) s
+  let sb = SampleBank (M.fromList [(0, s0), (1, s1), (2, s2)]) 0 NoLoop Nothing
+  play (take 120 $ cycle pattern) 0 sb 0.3
+  
+

@@ -1,21 +1,12 @@
 module Stream (Stream, Signal, renderSignal, silence) where
---, loadStream) where
 
 import Data.Int (Int32 (..))
---import Data.WAVE
 
 type Signal = Double -> Double
 type Stream = [Int32]
 
-
 silence :: Signal
 silence = const 0
-
---loadStream :: String -> Int -> IO Stream
---loadStream fn ch = do
---   s <- getWAVEFile fn
---   return $ map (!! ch) (waveSamples s)
-
 
 renderSignal :: Double -> Double -> Int -> Signal -> Stream
 renderSignal startPosition endPosition sampleRate s = [(toStream . clipped) (sample * period) | sample <- [start..end]]
