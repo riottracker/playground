@@ -16,10 +16,10 @@ data Synth = Synth
            , tone    :: Maybe Int
            }
 
-instance Instrument Synth where
-  handleEvent s NoteOff    = s { elapsed = 0, tone = Nothing }
-  handleEvent s (NoteOn n) = s { elapsed = 0, tone = Just n }
-  render s dur sampleRate  = (i, renderSignal (elapsed s) (elapsed i) sampleRate synth)
+instance Instrument_ Synth where
+  handleEvent NoteOff s    = s { elapsed = 0, tone = Nothing }
+  handleEvent (NoteOn n) s = s { elapsed = 0, tone = Just n }
+  render dur sampleRate s  = (i, renderSignal (elapsed s) (elapsed i) sampleRate synth)
     where i = s { elapsed = (elapsed s) + dur }
           synth = case tone s of
                      Just n -> trackEnvelope (osc s) (env s) $ keyToFreq n

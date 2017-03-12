@@ -17,10 +17,10 @@ data SampleBank = SampleBank
                 , tone     :: Maybe Int
                 }
 
-instance Instrument SampleBank where
-  handleEvent sb NoteOff    = sb { position = 0, tone = Nothing }
-  handleEvent sb (NoteOn n) = sb { position = 0, tone = Just n }
-  render sb dur sampleRate  = (ins, take numSamples $ drop (position sb) $ loop)
+instance Instrument_ SampleBank where
+  handleEvent NoteOff sb    = sb { position = 0, tone = Nothing }
+  handleEvent (NoteOn n) sb = sb { position = 0, tone = Just n }
+  render dur sampleRate sb  = (ins, take numSamples $ drop (position sb) $ loop)
     where numSamples = floor $ (fromIntegral sampleRate) * dur  
           ins        = sb { position = (position sb) + numSamples }
           loop       = case loopMode sb of
