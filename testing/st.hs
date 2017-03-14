@@ -34,7 +34,7 @@ mainLoop i d = do
            Nothing -> i
         )
        else i
-  let p = render (snd m) sampleRate ni
+  let p = render 0.1 sampleRate ni
   playOnStdOut (snd p)
 --  if (length $ fst m) > 0 then do
 --    putStrLn $ show m

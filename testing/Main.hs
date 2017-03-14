@@ -37,11 +37,9 @@ play s pos ins tempo = p >> if pos + 1 == length s then return ()
         p = playOnStdOut res
 
 main = do
-  s <- loadSample "sample.wav" 0
-  let s0 = take 3000 $ drop (sampleRate * 2) s
-  let s1 = take 3000 $ drop (sampleRate * 10) s
-  let s2 = take 3000 $ drop (sampleRate * 12) s
-  let sb = SampleBank (M.fromList [(0, s0), (1, s1), (2, s2)]) 0 NoLoop Nothing
+  bd <- loadSample "../sequencer/bd.wav" 0
+  stick <- loadSample "../sequencer/stick.wav" 0
+  let sb = SampleBank (M.fromList [(0, bd), (1, stick)]) 0 NoLoop Nothing
   let instruments = M.fromList [(0, Instrument bell), (1, Instrument sb)]
   play exampleSong 0 instruments 0.3
   
