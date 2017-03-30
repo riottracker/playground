@@ -5,4 +5,4 @@ import Data.Binary (encode)
 import qualified Data.ByteString.Lazy as B (putStr)
 
 playOnStdOut :: Stream -> IO ()
-playOnStdOut s = do B.putStr $ encode s
+playOnStdOut = B.putStr . encode
