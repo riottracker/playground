@@ -39,6 +39,7 @@ data Envelope = Envelope
 -- TODO: make this logarithmic
 envelope :: Envelope -> Double -> Double
 envelope Envelope{..} t
+  | t == 0 && attack == 0                   = 0
   | t <= attack                             = (t / attack)
   | t <= attack + decay                     = 1.0 - (t - attack) / decay * (1.0 - sustainLevel)
   | t <= attack + decay + sustain           = sustainLevel
