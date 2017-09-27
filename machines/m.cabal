@@ -13,11 +13,14 @@ cabal-version:       >=1.10
 
 executable m
   main-is:             Main.hs
-  -- other-modules:       
+  other-modules:       Block
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10
-                     , machines
+                     , array
                      , binary
                      , bytestring
   hs-source-dirs:      src
+  ghc-options:         -fprof-auto
+                       -prof
+                       -O2
   default-language:    Haskell2010
