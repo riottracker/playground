@@ -4,6 +4,7 @@ import           Data.Char
 import           Data.Maybe
 import           Graphics.Vty
 import qualified Control.Applicative as A
+import           Codec.Tracker.XM.Pattern
 
 import           Editor
 import           Sequencer
@@ -41,21 +42,21 @@ renderCell chn i ed seq = string (nth 0 brightWhite) (printPitch cell)
                       <|>   (string  (nth 1 cyan) (print16th (instrument cell))
                       <|>    string  (nth 2 cyan) (print1st (instrument cell)))
                       <|> string defAttr " "           
-                      <|>   (string  (nth 3 green) (print16th (volpan cell))
-                      <|>    string  (nth 4 green) (print1st (volpan cell)))
+                      <|>   (string  (nth 3 green) (print16th (volume cell))
+                      <|>    string  (nth 4 green) (print1st (volume cell)))
                       <|> string defAttr " "            
-                      <|>   (string  (nth 5 yellow) (print1st (fxtype cell))
-                      <|>    string  (nth 6 magenta) (print16th (fxparam cell))
-                      <|>    string  (nth 7 magenta) (print1st (fxparam cell)))
+                      <|>   (string  (nth 5 yellow) (print1st (effectType cell))
+                      <|>    string  (nth 6 magenta) (print16th (effectParam cell))
+                      <|>    string  (nth 7 magenta) (print1st (effectParam cell)))
                       <|> string defAttr " "
   where
     cell         = ((!! i) . (!! chn) . track) $ song seq
     colored k    = defAttr `withForeColor` k
     nth n k      = if cursorX ed == n && cursorY ed == i && sChannel ed == chn
                    then selected (colored k) else colored k
-    print1st a   = if isNothing a then "." else [ intToDigit $ fromJust a `mod` 16 ]
-    print16th a  = if isNothing a then "." else [ intToDigit $ fromJust a `div` 16 ]
-    printPitch c = maybe "..." show (pitch c)
+    print1st a   = if isNothing a then "." else [ intToDigit . fromIntegral $ fromJust a `mod` 16 ]
+    print16th a  = if isNothing a then "." else [ intToDigit . fromIntegral $ fromJust a `div` 16 ]
+    printPitch c = maybe "..." show (note c)
     selected x   = if editMode ed
                    then x `withBackColor` red
                    else x `withStyle` reverseVideo

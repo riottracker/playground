@@ -24,14 +24,6 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Debug.Trace
 
-n2pitch :: Int -> Maybe Pitch
-n2pitch 97 = Nothing
-n2pitch n  = Just (Pitch ((cycle notes) !! (n - 1)) (div n 12))
-  where notes = [Cn, C', Dn, D', En, Fn, F', Gn, G', An, A', Bn]
-
-cell2cell :: XM.Cell -> Cell
-cell2cell (XM.Cell n i v et ep) = Cell (fromIntegral <$> n >>= n2pitch) (fromIntegral <$> i) (fromIntegral <$> v) (fromIntegral <$> et) (fromIntegral <$> ep)
-
 main = do
     fl <- BL.readFile "test.xm"
     device <- Rt.defaultOutput
@@ -59,5 +51,5 @@ run app = do
 toSong :: XM.Module -> Song
 toSong mod = Song $ transpose rows
   where rows  = chunksOf (fromIntegral . XM.numChannels . XM.header $ mod) cells
-        cells = map cell2cell $ concat $ map XM.patternData $ XM.patterns mod
+        cells = concat $ map XM.patternData $ XM.patterns mod
 

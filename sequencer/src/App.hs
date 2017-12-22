@@ -8,6 +8,8 @@ import           Control.Monad
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Graphics.Vty
+import           Codec.Tracker.Common
+import           Codec.Tracker.XM.Pattern
 
 import           Editor
 import           Images
@@ -70,7 +72,7 @@ handleKChar ed c = when (editMode ed) $
     case cursorX ed of
         0 -> case lookup c pianoRoll of
                  Just x -> modifyCell (sequencer ed)
-                             (\a -> a{ pitch = Just $ x { octave = octave x + sOctave ed}})
+                             (\a -> a { note = Just . Note  $ toEnum (fromEnum x + 12 * sOctave ed)})
                              (sChannel ed)
                              (cursorY ed)
                  Nothing -> return ()
@@ -79,35 +81,34 @@ handleKChar ed c = when (editMode ed) $
         2 -> hexEdit
                (\a -> a { instrument = Just $ set1st (fromMaybe 0 (instrument a))})
         3 -> hexEdit
-               (\a -> a { volpan = Just $ set16th (fromMaybe 0 (volpan a))})
+               (\a -> a { volume = Just $ set16th (fromMaybe 0 (volume a))})
         4 -> hexEdit
-               (\a -> a { volpan = Just $ set1st (fromMaybe 0 (volpan a))})
-        5 -> hexEdit (\a -> a { fxtype = Just $ digitToInt c})
+               (\a -> a { volume = Just $ set1st (fromMaybe 0 (volume a))})
+        5 -> hexEdit (\a -> a { effectType = Just . toEnum . digitToInt $ c})
         6 -> hexEdit
-               (\a -> a { fxparam = Just $ set16th (fromMaybe 0 (fxparam a))})
+               (\a -> a { effectParam = Just $ set16th (fromMaybe 0 (effectParam a))})
         7 -> hexEdit
-               (\a -> a { fxparam = Just $ set1st (fromMaybe 0 (fxparam a))})
+               (\a -> a { effectParam = Just $ set1st (fromMaybe 0 (effectParam a))})
         _ -> return ()
 
   where
     hexEdit f = when (isHexDigit c) $ modifyCell (sequencer ed) f (sChannel ed) (cursorY ed)
-    set1st n = n - (n `mod` 16) + digitToInt c
-    set16th n = digitToInt c * 16 + (n `mod` 16)
-
+    set1st m = let n = fromIntegral m in toEnum $  n - (n `mod` 16) + digitToInt c
+    set16th m = let n = fromIntegral m in toEnum $ digitToInt c * 16 + (n `mod` 16)
 
 -- TODO: support different layouts
 --       (maybe query xkb?)
 pianoRoll :: [(Char, Pitch)]
-pianoRoll = [ ('z', Pitch Cn 0), ('s', Pitch C' 0), ('x', Pitch Dn 0)
-            , ('d', Pitch D' 0), ('c', Pitch En 0), ('v', Pitch Fn 0)
-            , ('g', Pitch F' 0), ('b', Pitch Gn 0), ('h', Pitch G' 0)
-            , ('n', Pitch An 0), ('j', Pitch A' 0), ('m', Pitch Bn 0)
-            , (',', Pitch Cn 1), ('l', Pitch C' 1), ('.', Pitch Dn 1)
-            , (':', Pitch D' 1), ('q', Pitch Cn 1), ('2', Pitch C' 1)
-            , ('w', Pitch Dn 1), ('3', Pitch D' 1), ('e', Pitch En 1)
-            , ('r', Pitch Fn 1), ('5', Pitch F' 1), ('t', Pitch Gn 1)
-            , ('6', Pitch G' 1), ('y', Pitch An 1), ('7', Pitch A' 1)
-            , ('u', Pitch Bn 1), ('i', Pitch Cn 2), ('9', Pitch C' 2)
-            , ('o', Pitch Dn 1), ('0', Pitch D' 1)
+pianoRoll = [ ('z', Pitch C 0), ('s', Pitch Csharp 0), ('x', Pitch D 0)
+            , ('d', Pitch Dsharp 0), ('c', Pitch E 0), ('v', Pitch F 0)
+            , ('g', Pitch Fsharp 0), ('b', Pitch G 0), ('h', Pitch Gsharp 0)
+            , ('n', Pitch A 0), ('j', Pitch Asharp 0), ('m', Pitch B 0)
+            , (',', Pitch C 1), ('l', Pitch Csharp 1), ('.', Pitch D 1)
+            , (':', Pitch Dsharp 1), ('q', Pitch C 1), ('2', Pitch Csharp 1)
+            , ('w', Pitch D 1), ('3', Pitch Dsharp 1), ('e', Pitch E 1)
+            , ('r', Pitch F 1), ('5', Pitch Fsharp 1), ('t', Pitch G 1)
+            , ('6', Pitch Gsharp 1), ('y', Pitch A 1), ('7', Pitch Asharp 1)
+            , ('u', Pitch B 1), ('i', Pitch C 2), ('9', Pitch Csharp 2)
+            , ('o', Pitch D 1), ('0', Pitch Dsharp 1)
             ]
 

@@ -16,6 +16,8 @@ import Control.Monad
 import Control.Concurrent
 import Control.Concurrent.STM
 import Debug.Trace
+import Codec.Tracker.Common
+import Codec.Tracker.XM.Pattern
 
 main = do
     device <- Rt.defaultOutput
@@ -42,19 +44,19 @@ run app = do
 
 exampleSong :: Song
 exampleSong = Song [
-                     [ Cell (Just (Pitch Cn 4)) (Just 1) Nothing Nothing Nothing
+                     [ Cell (Just $ Note (Pitch C 4)) (Just 1) Nothing Nothing Nothing
                      , emptyCell
-                     , Cell (Just (Pitch Dn 4)) (Just 1) Nothing Nothing Nothing
+                     , Cell (Just $ Note (Pitch D 4)) (Just 1) Nothing Nothing Nothing
                      , emptyCell
-                     , Cell (Just (Pitch En 4)) (Just 1) Nothing Nothing Nothing
+                     , Cell (Just $ Note (Pitch E 4)) (Just 1) Nothing Nothing Nothing
                      , emptyCell
-                     , Cell (Just (Pitch Fn 4)) (Just 1) Nothing Nothing Nothing
+                     , Cell (Just $ Note (Pitch F 4)) (Just 1) Nothing Nothing Nothing
                      , emptyCell
-                     , Cell (Just (Pitch Gn 4)) (Just 1) Nothing Nothing Nothing
+                     , Cell (Just $ Note (Pitch G 4)) (Just 1) Nothing Nothing Nothing
                      , emptyCell
                      , emptyCell
                      , emptyCell
-                     , Cell (Just (Pitch Gn 4)) (Just 1) Nothing Nothing Nothing
+                     , Cell (Just $ Note (Pitch G 4)) (Just 1) Nothing Nothing Nothing
                      , emptyCell
                      , emptyCell
                      , emptyCell

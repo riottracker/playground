@@ -22,12 +22,13 @@ executable xm
                      , modfile, split
                      , bytestring
                      , binary
+                     , modfile
   extra-libraries:     asound
 
 executable sequencer
   hs-source-dirs:      src
   main-is:             Main.hs
-  build-depends:       base >= 4.7 && < 5, vty, RtMidi, stm
+  build-depends:       base >= 4.7 && < 5, vty, RtMidi, stm, modfile
   extra-libraries:     asound
   default-language:    Haskell2010
   ghc-options:         "-threaded"
